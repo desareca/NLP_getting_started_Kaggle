@@ -1,9 +1,9 @@
 ---
 title: "GloVe y XGBTree para predecir desastres en Twitter"
 author: "Desareca"
-date: "06-09-2020"
+date: "07-09-2020"
 output:
-  html_document: 
+  html_document:
     code_folding: hide
     df_print: default
     highlight: tango
@@ -23,23 +23,23 @@ output:
 
 # Resumen
 
-El objetivo de este notebook es representar oraciones mediante el modelo **GloVe**. Este modelo normalmente se utiliza para representar palabras con muy buenos resultados, en este caso se hará una ponderación de los vectores de cada palabra para lograr un vector de cada oración tratada.
+El objetivo de este notebook es representar oraciones mediante el modelo **GloVe**. Este modelo normalmente se utiliza para representar palabras con muy buenos resultados, en este caso se hace una ajuste de los vectores de cada palabra para lograr un vector de cada frase tratada.
 
-Una vez establecida la representación se determinan modelos para predecir la veracidad de desastres informados en varios textos. 
+Una vez establecido el modelo vectorial **GloVe**, se determina un modelo **XGBTree** para predecir la veracidad de desastres informados en varios textos. 
 
-Para ello se utilizan dos datasets, el primero es un dataset peque?o con mensajes informando desastres en *twitter*, con esta base de datos se implementan los modelos. 
+Para ello se utilizan dos datasets, el primero es un dataset con mensajes informando desastres en *twitter*, con esta base de datos se implementa el **XGBTree**. 
 
-El segundo dataset es más grande y se utiliza para generar el modelo **GloVe**, esto es para lograr mayor generalización en la representación vectorial.
+El segundo dataset es grande y se utiliza para generar el modelo **GloVe**, esto es para lograr generalizar mejor con **GloVe**.
 
 
 
 # GloVe (Global Vectors)
 
-**GloVe** , acuñado de Global Vectors, es un modelo para la representación de palabras distribuidas. El modelo es un algoritmo de aprendizaje no supervisado para obtener representaciones vectoriales de palabras. Esto se logra mapeando palabras en un espacio significativo donde la distancia entre palabras está relacionada con la similitud semántica. El entrenamiento se realiza en estadísticas globales de co-ocurrencia palabra-palabra agregadas de un corpus, y las representaciones resultantes muestran interesantes subestructuras lineales del espacio vectorial de palabras [(Wikipedia)](https://en.wikipedia.org/wiki/GloVe_(machine_learning)).
+**GloVe** , que viene de Global Vectors, es un modelo para representar palabras distribuidas. El modelo es un algoritmo de aprendizaje no supervisado para obtener representaciones vectoriales de palabras. Esto se logra mapeando palabras en un espacio significativo donde la distancia entre palabras esta relacionada con la similitud semantica. El entrenamiento se realiza en estadisticas globales de co-ocurrencia palabra-palabra agregadas de un corpus, y las representaciones resultantes muestran interesantes subestructuras lineales del espacio vectorial de palabras [(Wikipedia)](https://en.wikipedia.org/wiki/GloVe_(machine_learning)).
 
 El algoritmo **GloVe** consta de los siguientes pasos:
 
-1- Recopilación de estadísticas de co-ocurrencia de palabras en una forma de matriz de co-ocurrencia $X$. Cada elemento $X_{ij}$ de dicha matriz representa la frecuencia con la que aparece la palabra $i$ en el contexto de la palabra $j$. Por lo general, se escanea el corpus de la siguiente manera: para cada término se buscan términos de contexto dentro de un ?rea definida por un tamaño de ventana antes del término y un tamaño de ventana después del término. También se da menos peso a las palabras más distantes, usualmente usando esta fórmula:
+1- Recopilacion de estadisticas de co-ocurrencia de palabras en una forma de matriz de co-ocurrencia $X$. Cada elemento $X_{ij}$ de dicha matriz representa la frecuencia con la que aparece la palabra $i$ en el contexto de la palabra $j$. Por lo general, se escanea el corpus de la siguiente manera: para cada termino se buscan terminos de contexto dentro de un area definida por un window-size antes del termino y un window.size despues del termino. Tambien se da menos peso a las palabras mas distantes, usualmente usando esta formula:
 
 $$decay = \frac{1}{offset}$$
 
@@ -55,20 +55,20 @@ Donde:
   - $b_j$: sesgo palabra contexto.
 
 
-3- Definir una función de costos:
+3- Definir una funcion de costos:
 
 
 $$J=\sum_{i=1}^{V}\sum_{j=1}^{V}f(X_{ij})(w_{i}^{T}w_j+b_i+b_j-logX_{ij})^2$$
 
-Donde $f$ es una función de ponderación que ayuda a evitar el aprendizaje solo de pares de palabras extremadamente comunes. Los autores de **GloVe** eligen la siguiente función:
+Donde $f$ es una funcion de ponderacion que ayuda a evitar el aprendizaje solo de pares de palabras extremadamente comunes. Los autores de **GloVe** eligen la siguiente funcion:
 
 
 $$f(X_{ij})=\begin{cases} (\frac{X_{ij}}{x_{max}})^\alpha & \text{si X_{ij} > XMAX} \\1 & \text{en otro caso}\end{cases}$$
 
-Para mayor información revisar ["GloVe: Global Vectors for Word Representation"](https://nlp.stanford.edu/pubs/glove.pdf), ["GloVe Word Embeddings"](http://text2vec.org/glove.html).
+Para mayor informacion revisar ["GloVe: Global Vectors for Word Representation"](https://nlp.stanford.edu/pubs/glove.pdf), ["GloVe Word Embeddings"](http://text2vec.org/glove.html).
 
 
-# Exploración Datasets.
+# Exploracion Datasets.
 
 ## Real or Not? NLP with Disaster Tweets.
 
@@ -96,13 +96,13 @@ library(glmnet)
 library(Rtsne)
 ```
 
-Twitter es un importante canal de comunicación en tiempos de emergencia. La ubicuidad de los teléfonos inteligentes permite a las personas anunciar una emergencia que están observando en tiempo real. Debido a esto, más agencias están interesadas en monitorear *Twitter* (es decir, organizaciones de ayuda ante desastres y agencias de noticias). Sin embargo, no siempre está claro si las palabras de una persona realmente anuncian un desastre. Este dataset representa una muestra de mensajes de emergencia en *Twitter* identificando si los desastres informados son reales o no.
+Twitter es un importante canal de comunicacion en tiempos de emergencia. La ubicuidad de los telefonos inteligentes permite a las personas anunciar una emergencia que estan observando en tiempo real. Debido a esto, mas agencias estan interesadas en monitorear *Twitter* (es decir, organizaciones de ayuda ante desastres y agencias de noticias). Sin embargo, no siempre esta claro si las palabras de una persona realmente anuncian un desastre. Este dataset representa una muestra de mensajes de emergencia en *Twitter* identificando si los desastres informados son reales o no.
 
-A continuación se muestran las primeras 6 observaciones del dataset, que muestra que consta de 5 columnas:
+A continuacion se muestran las primeras 6 observaciones del dataset, que muestra que consta de 5 columnas:
 
-- **id**: un identificador único para cada tweet. 
+- **id**: un identificador unico para cada tweet. 
 - **keyword**: una palabra clave en particular del tweet (puede estar en blanco).
-- **location**: la ubicación desde la que se envió el tweet (puede estar en blanco).
+- **location**: la ubicacion desde la que se envio el tweet (puede estar en blanco).
 - **text**: el texto del tweet. 
 - **target**: indica si un tweet trata sobre un desastre real (1) o no (0). 
 
@@ -115,12 +115,12 @@ htmlTable(dataDisaster %>% head(),
           css.cell = "padding-left: .5em; padding-right: .2em;")
 ```
 
-De estas variables se utilizan sólo **text** como característica para predecir **target**. Se observa que el dataset tiene **`r dim(dataDisaster)[1]`** observaciones, donde **`r round(mean(dataDisaster$target)*100,2)`%** de las observaciones son desastres reales.
+De estas variables se utilizan solo **text** como caracteristica para predecir **target**. Se observa que el dataset tiene **`r dim(dataDisaster)[1]`** observaciones, donde **`r round(mean(dataDisaster$target)*100,2)`%** de las observaciones son desastres reales.
 
-```{r targetDist, include=T, warning=FALSE, fig.width=15, cache=TRUE}
+```{r targetDist, fig.width=15, warning=FALSE, cache=TRUE, include=T}
 dataDisaster <- dataDisaster %>% select(text, target)
 htmlTable(dataDisaster %>% summary(),
-          caption = "Tabla 2. Distribución de variables.",
+          caption = "Tabla 2. Distribucion de variables.",
           tfoot = "",
           col.rgroup = c("none","#FC7C7C"),
           css.cell = "padding-left: .5em; padding-right: .2em;")
@@ -131,7 +131,7 @@ htmlTable(dataDisaster %>% summary(),
 ## HC Corpora.
 
 
-El dataset **[HC Corpora](https://twitter.com/hc_corpora)** está conformado por doce corpus divididos en cuatro idiomas (inglés, ruso, finlandés y alemán). Cada idioma tiene textos de twitter, blogs y sitios de noticias (en este caso se utiliza el corpus en inglés).
+El dataset **[HC Corpora](https://twitter.com/hc_corpora)** esta conformado por doce corpus divididos en cuatro idiomas (ingles, ruso, finlandes y aleman). Cada idioma tiene textos de twitter, blogs y sitios de noticias (en este caso se utiliza el corpus en ingles).
 
 ```{r dataCorpora, include=T, warning=FALSE, fig.width=15, cache=TRUE}
 news <- data.frame(text = readLines("en_US.news.txt", encoding = "UTF-8"),
@@ -146,27 +146,27 @@ htmlTable(data.frame(obs = c(dim(blogs)[1], dim(news)[1], dim(twitter)[1]),
                               format(object.size(news), units = "Mb"),
                               format(object.size(twitter), units = "Mb")),
                      row.names = c("blogs", "news", "twitter")),
-          caption = "Tabla 3. Tamaño y peso de cada dataset.",
+          caption = "Tabla 3. Largo y peso de cada dataset.",
           col.rgroup = c("none","#FC7C7C"),
           css.cell = "padding-left: .5em; padding-right: .2em;")
 
 htmlTable(data.frame(dataset = c("blogs", "news", "twitter"),
            text = c(blogs$text[1], news$text[1], twitter$text[1])
            ),
-          caption = "Tabla 4. Tamaño y peso de cada dataset.",
+          caption = "Tabla 4. Largo y peso de cada dataset.",
           col.rgroup = c("none","#FC7C7C"),
           css.cell = "padding-left: .5em; padding-right: .2em;")
 ```
 
-Se observa de la tabla 3 que el conjunto del dataset **HC Corpora** es bastante grande. La tabla 4 muestra una observación de cada subgrupo del dataset.
+Se observa de la tabla 3 que el conjunto del dataset **HC Corpora** es bastante grande. La tabla 4 muestra una observacion de cada subgrupo del dataset.
 
 
-# Limpieza y tokenización.
+# Limpieza y tokenizacion.
 
 Visto los datasets se procede a unirlos y limpiarlos, para ello consideraremos lo siguiente:
 
 - Limpiar direcciones web, eliminando los  textos *http*, *https*, *com*, *co* y *org*.
-- Eliminar signos de puntuación y números.
+- Eliminar signos de puntuacion y numeros.
 - Eliminar saltos de linea y espacios finales.
 - Eliminar posibles emojis.
 - Eliminar Stopwords.
@@ -210,13 +210,13 @@ vocab = create_vocabulary(it_train, ngram = c(1L, 1L))
 ```
 
 
-Con lo anterior se genera un vocabulario con `r dim(vocab)[1]` términos, de los cuales a continuación se presentan los 40 más y menos frecuentes.
+Con lo anterior se genera un vocabulario con `r dim(vocab)[1]` terminos, de los cuales a continuacion se presentan los 40 mas y menos frecuentes.
 
 <br>
 
 #### {.tabset .tabset-fade}
 
-##### Palabras más frecuentes
+##### Palabras mas frecuentes
 
 ```{r mostFreqWords1, include=T, warning=FALSE, fig.width=15, fig.height=10, cache=TRUE}
 vocab_prune = vocab %>% 
@@ -227,7 +227,7 @@ vocab[order(vocab$term_count, decreasing = TRUE),] %>% head(40) %>%
       geom_bar(stat = "identity", fill="red", alpha = 0.7) +  coord_flip() +
       theme(legend.title=element_blank()) +
       xlab("Palabras") + ylab("Frecuencia") +
-      labs(title = paste0("Palabras más frecuentes (",dim(vocab)[1], " palabras)"))+
+      labs(title = paste0("Palabras mas frecuentes (",dim(vocab)[1], " palabras)"))+
       theme_linedraw()
 ```
 
@@ -257,16 +257,16 @@ vocab %>%
 
 #### 
 
-Como se observa en el histograma, existen muchos términos que aparecen sólo una vez. Estos términos no son útiles para el modelo y utilizan memoria, por lo que se eliminarán, como criterio se consideraron sólo los términos que aparezcan por lo menos 10 veces. Esto genera una reducción significativa, quedando `r dim(vocab_prune)[1]` términos en total.
+Como se observa en el histograma, existen muchos terminos que aparecen solo una vez. Estos terminos no son utiles para el modelo y utilizan memoria, por lo que se eliminaran, como criterio se consideraron solo los terminos que aparezcan por lo menos 10 veces. Esto genera una reduccion significativa, quedando `r dim(vocab_prune)[1]` terminos en total.
 
 
-# Vectorización utilizando **GloVe**.
+# Vectorizacion utilizando **GloVe**.
 
-La idea central al aplicar **GloVe** al problema es vectorizar una oración, dado que este modelo está orientado a palabras se procederá a determinar los vectores de las palabras para luego realizar una combinación de estos vectores y generar los vectores de las oraciones. Esto se fundamenta en la idea de que palabras relacionadas semánticamente tendrán un vector similar, esto hace que al ser agregados al vector de la oración se mantendrá un resultado similar.
+La idea central al aplicar **GloVe** al problema es vectorizar una oracion, dado que este modelo esta orientado a palabras se procedera a determinar los vectores de las palabras para luego realizar una combinacion de estos vectores y generar los vectores de las oraciones. Esto se fundamenta en la idea de que palabras relacionadas semanticamente tendran un vector similar, esto hace que al ser agregados al vector de la oracion se mantendra un resultado similar.
 
 ## Vectores de palabras.
 
-Con el vocabulario reducido se genera un modelo **GloVe** considerando 200 variables y 50 iteraciones. Con esto se reduce la dimensionalidad de manera significativa. A continuación se observa la evolución de la pérdida durante el entrenamiento.
+Con el vocabulario reducido se genera un modelo **GloVe** considerando 200 variables y 50 iteraciones. Con esto se reduce la dimensionalidad de manera significativa. A continuacion se observa la evolucion de la perdida durante el entrenamiento.
 
 ```{r GloveWord, fig.height=10, fig.width=15, message=FALSE, warning=FALSE, cache=TRUE, include=T}
 vectorizer = vocab_vectorizer(vocab_prune)
@@ -288,7 +288,7 @@ rm(tcm, glove, train)
 ```
 
 
-Para visualizar las relaciones generadas por el modelo se muestra a continuación una representación utilizando **t-SNE** en (*3D*). Para complementar la visualización se colorean las palabras en base a su sentimiento en **negro** para **neutro**, **azul** para **positivo** y **rojo** para **negativo**.
+Para visualizar las relaciones generadas por el modelo se muestra a continuacion una representacion utilizando **t-SNE** en (*3D*). Para complementar la visualizacion se colorean las palabras en base a su sentimiento en **negro** para **neutro**, **azul** para **positivo** y **rojo** para **negativo**.
 
 
 ```{r GloveTSNE, include=T, warning=FALSE, fig.width=10, fig.height=7, cache=TRUE}
@@ -316,7 +316,7 @@ p <- plot_ly(tsne_plot, x = ~V1, y = ~V2, z = ~V3,
              text = ~word, textposition = 'middle right',
              textfont = list(color = em[,1], size = 12),
              width = 1000*0.75, height = 700*0.75) %>%
-      layout(title = "Representación de palabras con GloVe", 
+      layout(title = "Representacion de palabras con GloVe", 
              scene = list(xaxis = list(title = 'x'),
                           yaxis = list(title = 'y'),
                           zaxis = list(title = 'z')
@@ -325,7 +325,7 @@ p
 ```
 
 
-La representación selecciona las `r dim(wvOrder)[1]` palabras más comunes. Se observan varias relaciones de palabras con un contexto similar, como por ejemplo:
+La representacion selecciona las `r dim(wvOrder)[1]` palabras mas comunes. Se observan varias relaciones de palabras con un contexto similar, como por ejemplo:
 
 - day, yesterday, today, month, week, weekend, tomorrow, season, year, saturday, sunday.
 - tweet, twitter, facebook.
@@ -338,7 +338,7 @@ La representación selecciona las `r dim(wvOrder)[1]` palabras más comunes. Se 
 - red, green.
 - etc.
 
-Estas relaciones semánticas son útiles para poder codificar oraciones completas. Además, se tiene que las palabras **negativas** y **positivas** no son cercanas, a excepción de algunos casos aislados como **white**/**black** y **money**/**pay**.
+Estas relaciones semanticas son utiles para poder codificar oraciones completas. Ademas, se tiene que las palabras **negativas** y **positivas** no son cercanas, a excepcion de algunos casos aislados como **white**/**black** y **money**/**pay**.
 
 
 
@@ -346,26 +346,26 @@ Estas relaciones semánticas son útiles para poder codificar oraciones completa
 
 ## Vectores ponderados de oraciones.
 
-Para intentar representar oraciones que incluyan relaciones semánticas se considera la suma ponderada utilizando los vectores del modelo **GloVe** generados en el punto anterior. Esto se lleva a cabo de la siguiente manera:
+Para intentar representar oraciones que incluyan relaciones semanticas se considera la suma ponderada utilizando los vectores del modelo **GloVe** generados en el punto anterior. Esto se lleva a cabo de la siguiente manera:
 
 $$V_s=\frac{\sum_{i=1}^{n}{\overline{dtm_i}V_{w_i}}}{n}$$
 
 Donde:
 
-  - $V_s$: Vector ponderado de la oración.
+  - $V_s$: Vector ponderado de la oracion.
   - $V_{w_i}$: Vector de cada palabra $w_i$.
-  - $\overline{dtm_i}$: Factor de ponderación de cada $w_i$. Este se determina a partir de la $dtm$ normalizada mediante ***Tf-Idf***.
-  - $n$: Numero de palabras en la oración.
+  - $\overline{dtm_i}$: Factor de ponderacion de cada $w_i$. Este se determina a partir de la $dtm$ normalizada mediante ***Tf-Idf***.
+  - $n$: Numero de palabras en la oracion.
 
-Se utiliza la normalización ***Tf-Idf*** para que las palabras más comunes sean menos representativas y no influyan de sobremanera en el promedio.
+Se utiliza la normalizacion ***Tf-Idf*** para que las palabras mas comunes sean menos representativas y no influyan de sobremanera en el promedio.
 
-Aplicando nuevamente **t-SNE**(*2D*) al **dtm** (Document-term matrix), **dtm tfidf** (Document-term matrix normalizado Tf-Idf) y al modelo **GloVe** se observa que en ningún caso hay una clara relación entre el target (desastre/no desastre) y los datos. Por otro, lado también se observa que ambos **dtm** presentan algunos patrones, que en el caso de **Glove** se tienden a perder.
+Aplicando nuevamente **t-SNE**(*2D*) al **dtm** (Document-term matrix), **dtm tfidf** (Document-term matrix normalizado Tf-Idf) y al modelo **GloVe** se observa que en ningun caso hay una clara relacion entre el target (desastre/no desastre) y los datos. Por otro, lado tambien se observa que ambos **dtm** presentan algunos patrones, que en el caso de **Glove** se tienden a perder.
 
 <br>
 
 #### {.tabset .tabset-fade}
 
-##### Vectorización con GloVe
+##### Vectorizacion con GloVe
 
 ```{r GloveSentence1, fig.height=10, fig.width=15, message=FALSE, warning=FALSE, cache=TRUE, include=T}
 trainSample <- fread("train.csv") %>% select(text, target)
@@ -442,14 +442,14 @@ tsne_plot2 %>%
                    upper = list(continuous = GGally::wrap("cor", alpha = 1, size = 8)),
                    lower = list(continuous = GGally::wrap("points", alpha = 0.5, size = 6)),
                    diag = list(continuous = GGally::wrap("densityDiag", alpha = 0.7)),
-                   title = "Representación t-SNE de vectorización GloVe"
+                   title = "Representacion t-SNE de vectorización GloVe"
                    )+
    scale_fill_manual(values = c("#FF0000", "#000000"))+
    scale_color_manual(values = c("#FF0000", "#000000"))+
    theme_linedraw()
 ```
 
-##### Vectorización con DTM
+##### Vectorizacion con DTM
 
 ```{r GloveSentence2, fig.height=10, fig.width=15, message=FALSE, warning=FALSE, cache=TRUE, include=T}
 # t-SNE dtm
@@ -468,14 +468,14 @@ tsne_plot2 %>%
                    upper = list(continuous = GGally::wrap("cor", alpha = 1, size = 8)),
                    lower = list(continuous = GGally::wrap("points", alpha = 0.5, size = 6)),
                    diag = list(continuous = GGally::wrap("densityDiag", alpha = 0.7)),
-                   title = "Representación t-SNE de Document-term matrix"
+                   title = "Representacion t-SNE de Document-term matrix"
                    )+
    scale_fill_manual(values = c("#FF0000", "#000000"))+
    scale_color_manual(values = c("#FF0000", "#000000"))+
    theme_linedraw()
 ```
 
-##### Vectorización con DTM normalizado Tf-Idf
+##### Vectorizacion con DTM normalizado Tf-Idf
 
 ```{r GloveSentence3, fig.height=10, fig.width=15, message=FALSE, warning=FALSE, cache=TRUE, include=T}
 # t-SNE dtm_tfidf
@@ -494,7 +494,7 @@ tsne_plot2 %>%
                    upper = list(continuous = GGally::wrap("cor", alpha = 1, size = 8)),
                    lower = list(continuous = GGally::wrap("points", alpha = 0.5, size = 6)),
                    diag = list(continuous = GGally::wrap("densityDiag", alpha = 0.7)),
-                   title = "Representación t-SNE de Document-term matrix normalizado Tf-Idf"
+                   title = "Representacion t-SNE de Document-term matrix normalizado Tf-Idf"
                    )+
    scale_fill_manual(values = c("#FF0000", "#000000"))+
    scale_color_manual(values = c("#FF0000", "#000000"))+
@@ -508,13 +508,13 @@ tsne_plot2 %>%
 
 # Modelo XGBTree
 
-Para predecir consideraremos un modelo ***XGB Tree*** y los siguientes parámetros:
+Para predecir consideraremos un modelo ***XGB Tree*** y los siguientes parametros:
 
-- Validación cruzada con 10 folds.
-- Búsqueda de hiperparámetros aleatoria, con 50 búsquedas.
-- Muestreo ***up***, esto debido a que está levemente desbalanceada el target.
-- Se centrarán y escalarán las variables predictoras.
-- Métrica ***ROC***.
+- Validacion cruzada con 10 folds.
+- Busqueda de hiperparametros aleatoria, con 50 busquedas.
+- Muestreo ***up***, esto debido a que esta levemente desbalanceada el target.
+- Se centraran y escalaran las variables predictoras.
+- Metrica ***ROC***.
 
 ```{r GloveXGBTree, include=T, warning=FALSE, fig.width=15, fig.height=10, cache=TRUE}
 fitControl <- trainControl(method = "cv",
@@ -544,18 +544,21 @@ ggplot(xgbTreeGloVe) + ggtitle("Resultado del Modelo XGBTree con GloVe")+
 
 ```
 
-Este modelo entrega buenos resultados, con un ***ROC*** mayor a **0.86**. Si lo comparamos con un [modelo anterior](https://rpubs.com/desareca/NLP_getting_started_xgbTree) que como máximo llegó a **0.83** es una buena mejora.
+Este modelo entrega buenos resultados, con un ***ROC*** mayor a **0.86**. Si lo comparamos con un [modelo anterior](https://rpubs.com/desareca/NLP_getting_started_xgbTree) que como maximo llego a **0.83** es una buena mejora.
 
-Es necesario considerar que este modelo se desarrolló con una vectorización **GloVe** de 200 variables en oposición al modelo con el que se compara que utiliza 1122 variables.
+Es necesario considerar que este modelo se desarrollo con una vectorizacion **GloVe** de 200 variables en oposicion al modelo con el que se compara que utiliza 1122 variables.
 
 
 # Observaciones
 
-Es posible generar una vectorización a partir de **GloVe** para oraciones, aunque es necesario considerar una base de datos los suficientemente grande para la vectorización de palabras y que el modelo sea representativo y se puedan generalizar las relaciones entre palabras. De lo anterior y como este modelo fue desarrollado en un computador personal, es perfectamente mejorable el modelo de vectorización de palabras.
+Es posible generar una vectorizacion a partir de **GloVe** para oraciones, aunque es necesario considerar una base de datos los suficientemente grande para la vectorizacion de palabras y que el modelo sea representativo y se puedan generalizar las relaciones entre palabras. De lo anterior y como este modelo fue desarrollado en un computador personal, es perfectamente mejorable el modelo de vectorizacion de palabras.
 
-La ponderación utilizando **Tf-Idf** resultó ser una buena opción. Es posible mejorar estos pesos utilizando otro modelo que determine pesos optimos para cada problema, pero como primer paso es una buena opción.
+La ponderacion utilizando **Tf-Idf** resulto ser una buena opcion. Es posible mejorar estos pesos utilizando otro modelo que determine pesos optimos para cada problema, pero como primer paso es una buena opcion.
 
 
+# Referencias:
+
+https://github.com/desareca/NLP_getting_started_Kaggle/tree/master/NLP%20Glove_XGBTree
 
 
 # Sesion Info
